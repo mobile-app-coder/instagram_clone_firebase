@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:instagram_clone_firebase/services/http_service.dart';
 
 import '../models/member_model.dart';
+import '../services/db_service.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -12,9 +14,61 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   bool isLoading = false;
   var searchController = TextEditingController();
-  List<Member> items = [
-    Member("Shahriyor", "ssss@gmail.com"),
-  ];
+  List<Member> items = [];
+
+  void _apiFollowMember(Member someone) async {
+    setState(() {
+      isLoading = true;
+    });
+    await DBService.followMember(someone);
+    setState(() {
+      someone.followed = true;
+      isLoading = false;
+    });
+    DBService.storePostsToMyFeed(someone);
+
+    sendNotificationToFollowedMember(someone);
+  }
+
+  void _apiUnFollowMember(Member someone) async {
+    setState(() {
+      isLoading = true;
+    });
+    await DBService.unfollowMember(someone);
+    setState(() {
+      someone.followed = false;
+      isLoading = false;
+    });
+    DBService.removePostsFromMyFeed(someone);
+  }
+
+  void sendNotificationToFollowedMember(Member someone) async {
+    Member me = await DBService.loadMember();
+    await Network.POST(Network.API_SEND_NOTIF, Network.paramsNotify(me, someone));
+  }
+
+  void _apiSearchMembers(String keyword) {
+    setState(() {
+      isLoading = true;
+    });
+    DBService.searchMembers(keyword).then((users) => {
+          debugPrint(users.length.toString()),
+          _resSearchMembers(users),
+        });
+  }
+
+  _resSearchMembers(List<Member> members) {
+    setState(() {
+      items = members;
+      isLoading = false;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _apiSearchMembers("");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +133,7 @@ class _SearchPageState extends State<SearchPage> {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(2),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(70),
                 border: Border.all(
@@ -103,29 +157,39 @@ class _SearchPageState extends State<SearchPage> {
           const SizedBox(
             width: 15,
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                member.fullname,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(
-                height: 3,
-              ),
-              Text(
-                member.email,
-                style: const TextStyle(color: Colors.black54),
-              )
-            ],
-          ),
           Expanded(
-              child: Row(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.fullname,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(
+                  height: 3,
+                ),
+                Text(
+                  member.email,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black54),
+                )
+              ],
+            ),
+          ),
+          Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  setState(() {
+                    if (member.followed) {
+                      _apiUnFollowMember(member);
+                    } else {
+                      _apiFollowMember(member);
+                    }
+                  });
+                },
                 child: Container(
                   width: 100,
                   height: 30,
@@ -138,7 +202,7 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               )
             ],
-          ))
+          )
         ],
       ),
     );

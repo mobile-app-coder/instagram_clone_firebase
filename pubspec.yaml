@@ -21,9 +21,13 @@ dependencies:
   firebase_auth: ^4.19.0
   cloud_firestore: ^4.16.0
   firebase_storage: ^11.7.0
+  http: ^1.2.1
+  flutter_local_notifications: ^17.0.1
+
+
+
   platform_device_id_v3: ^1.0.0
   firebase_messaging: ^14.8.0
-  flutter_local_notifications: ^17.0.0
   shared_preferences: ^2.0.15
   logger: ^2.2.0
 

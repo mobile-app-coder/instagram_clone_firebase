@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:instagram_clone_firebase/pages/feed_page.dart';
+import 'package:instagram_clone_firebase/pages/likes_page.dart';
+import 'package:instagram_clone_firebase/pages/profile_page.dart';
 import 'package:instagram_clone_firebase/pages/search_page.dart';
 import 'package:instagram_clone_firebase/pages/upload_page.dart';
 
@@ -33,7 +35,11 @@ class _HomePageState extends State<HomePage> {
             pageController: pageController,
           ),
           SearchPage(),
-          UploadPage()
+          UploadPage(
+            pageController: pageController,
+          ),
+          LikesPage(),
+          ProfilePage()
         ],
         onPageChanged: (index) {
           setState(() {

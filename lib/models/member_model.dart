@@ -36,4 +36,9 @@ class Member {
     'device_type': device_type,
     'device_token': device_token,
   };
+
+  @override
+  String toString() {
+    return 'Member{fullname: $fullname, email: $email, followed: $followed}\n';
+  }
 }

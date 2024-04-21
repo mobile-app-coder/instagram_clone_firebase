@@ -1,8 +1,14 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:instagram_clone_firebase/pages/home_page.dart';
 import 'package:instagram_clone_firebase/pages/sign_in_page.dart';
+import 'package:instagram_clone_firebase/services/notife_service.dart';
+
+import '../services/auth_service.dart';
+import '../services/log_service.dart';
+import '../services/prefs_service.dart';
 
 class SplashPage extends StatefulWidget {
   static const String id = "splash_page";
@@ -14,17 +20,55 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  _callHomePage() {
-    Navigator.pushReplacementNamed(context, HomePage.id);
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
+
+  _initNotification() async {
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      LogService.i('User granted permission');
+    } else {
+      LogService.e('User declined or has not accepted permission');
+    }
+
+    _firebaseMessaging.getToken().then((value) async {
+      String fcmToken = value.toString();
+      Prefs.saveFCM(fcmToken);
+      String token = await Prefs.loadFCM();
+      LogService.i("FCM Token: $token");
+    });
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      String title = message.notification!.title.toString();
+      String body = message.notification!.body.toString();
+      LogService.i(title);
+      LogService.i(body);
+      LogService.i(message.data.toString());
+
+      NotifyService().showLocalNotification(title, body);
+    });
   }
 
-  _callSingPage() {
-    Navigator.pushReplacementNamed(context, HomePage.id);
+  _callNextPage() {
+    if (AuthService.isLoggedIn()) {
+      Navigator.pushReplacementNamed(context, HomePage.id);
+    } else {
+      Navigator.pushReplacementNamed(context, SignInPage.id);
+    }
   }
 
   _timer() {
     Timer(const Duration(seconds: 3), () {
-      _callSingPage();
+      _callNextPage();
     });
   }
 
@@ -32,6 +76,7 @@ class _SplashPageState extends State<SplashPage> {
   void initState() {
     super.initState();
     _timer();
+    _initNotification();
   }
 
   @override

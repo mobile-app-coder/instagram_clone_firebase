@@ -1,8 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:instagram_clone_firebase/services/db_service.dart';
 
+import '../models/member_model.dart';
 import '../models/post_model.dart';
+import '../services/http_service.dart';
+import '../services/util_service.dart';
 
 class MyFeedPage extends StatefulWidget {
   final PageController? pageController;
@@ -16,11 +20,75 @@ class MyFeedPage extends StatefulWidget {
 class _MyFeedPageState extends State<MyFeedPage> {
   bool isLoading = false;
 
-  List<Post> items = [
-    Post("shahriyor turayev flutter and native android developer",
-        "https://images.unsplash.com/photo-1712262825783-c0b5ef123959?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxlZGl0b3JpYWwtZmVlZHwxNnx8fGVufDB8fHx8fA%3D%3D",),
+  List<Post> items = [];
 
-  ];
+  Future<void> _apiPostLike(Post post) async {
+    setState(() {
+      isLoading = true;
+    });
+    await DBService.likePost(post, true);
+    setState(() {
+      isLoading = false;
+      post.liked = true;
+    });
+  }
+
+  _resLoadFeeds(List<Post> posts) {
+    setState(() {
+      items = posts;
+      isLoading = false;
+    });
+  }
+
+  _apiLoadFeeds() {
+    setState(() {
+      isLoading = true;
+    });
+    DBService.loadFeeds().then((value) => {
+          _resLoadFeeds(value),
+        });
+  }
+
+  void _apiPostUnLike(Post post) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    await DBService.likePost(post, false);
+    setState(() {
+      isLoading = false;
+      post.liked = false;
+    });
+
+    var owner = await DBService.getOwner(post.uid);
+    sendNotificationToFollowedMember(owner);
+  }
+
+  void sendNotificationToFollowedMember(Member someone) async {
+    Member me = await DBService.loadMember();
+    await Network.POST(Network.API_SEND_NOTIF, Network.NotifyLike(me, someone));
+  }
+
+  _dialogRemovePost(Post post) async {
+    var result = await Utils.dialogCommon(
+        context, "Instagram", "Do you want to detele this post?", false);
+
+    if (result) {
+      setState(() {
+        isLoading = true;
+      });
+      DBService.removePost(post).then((value) => {
+            _apiLoadFeeds(),
+          });
+    }
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _apiLoadFeeds();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,8 +139,7 @@ class _MyFeedPageState extends State<MyFeedPage> {
                         borderRadius: BorderRadius.circular(40),
                         child: post.img_user.isEmpty
                             ? const Image(
-                                image:
-                                    AssetImage("assets/images/img.png"),
+                                image: AssetImage("assets/images/img.png"),
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
@@ -106,7 +173,11 @@ class _MyFeedPageState extends State<MyFeedPage> {
                   ],
                 ),
                 post.mine
-                    ? IconButton(onPressed: () {}, icon: Icon(Icons.more_horiz))
+                    ? IconButton(
+                        onPressed: () {
+                          _dialogRemovePost(post);
+                        },
+                        icon: Icon(Icons.more_horiz))
                     : const SizedBox.shrink()
               ],
             ),
@@ -132,7 +203,10 @@ class _MyFeedPageState extends State<MyFeedPage> {
                   IconButton(
                       onPressed: () {
                         if (!post.liked) {
-                        } else {}
+                          _apiPostLike(post);
+                        } else {
+                          _apiPostUnLike(post);
+                        }
                       },
                       icon: post.liked
                           ? const Icon(
@@ -140,7 +214,7 @@ class _MyFeedPageState extends State<MyFeedPage> {
                               color: Colors.red,
                             )
                           : const Icon(
-                              EvaIcons.heart,
+                              EvaIcons.heartOutline,
                               color: Colors.black,
                             )),
                   IconButton(

@@ -1,6 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:instagram_clone_firebase/pages/sign_in_page.dart';
 
+import '../models/member_model.dart';
+import '../services/auth_service.dart';
+import '../services/db_service.dart';
+import '../services/prefs_service.dart';
 import '../services/util_service.dart';
 import 'home_page.dart';
 
@@ -16,27 +21,61 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   var isLoading = false;
   var emailController = TextEditingController();
-  var fullNameController = TextEditingController();
+  var fullnameController = TextEditingController();
   var passwordController = TextEditingController();
-  var passwordConfirmController = TextEditingController();
+  var cpasswordController = TextEditingController();
 
   _doSignUp() async {
-    String fullname = fullNameController.text.toString().trim();
+    String fullname = fullnameController.text.toString().trim();
     String email = emailController.text.toString().trim();
     String password = passwordController.text.toString().trim();
-    String cpassword = passwordConfirmController.text.toString().trim();
+    String cpassword = cpasswordController.text.toString().trim();
 
-    if (fullname.isEmpty && email.isEmpty && password.isEmpty) return;
+    if (fullname.isEmpty || email.isEmpty || password.isEmpty) return;
 
     if (cpassword != password) {
       Utils.fireToast("Password and confirm password does not match");
       return;
     }
-    _callHomePage();
+
+    setState(() {
+      isLoading = true;
+    });
+
+    AuthService.signUpUser(context, fullname, email, password)
+        .then((firebaseUser) => {
+              _getFirebaseUser(firebaseUser, Member(fullname, email)),
+            });
+  }
+
+  _getFirebaseUser(User? firebaseUser, Member member) async {
+    setState(() {
+      isLoading = false;
+    });
+    if (firebaseUser != null) {
+      _saveMemberIdToLocal(firebaseUser);
+      _saveMemberToCloud(member);
+
+      _callHomePage();
+    } else {
+      Utils.fireToast("Check your information");
+    }
+  }
+
+  _saveMemberIdToLocal(User firebaseUser) async {
+    await Prefs.saveUserId(firebaseUser.uid);
+  }
+
+  _saveMemberToCloud(Member member) async {
+    await DBService.storeMember(member);
   }
 
   _callHomePage() {
     Navigator.pushReplacementNamed(context, HomePage.id);
+  }
+
+  _callSignInPage() {
+    Navigator.pushReplacementNamed(context, SignInPage.id);
   }
 
   @override
@@ -78,7 +117,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(7)),
                     child: TextField(
-                      controller: fullNameController,
+                      controller: fullnameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                           hintText: "Username",
@@ -137,7 +176,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         borderRadius: BorderRadius.circular(7)),
                     child: TextField(
                       obscureText: true,
-                      controller: passwordConfirmController,
+                      controller: cpasswordController,
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                           hintText: "Confirm password",
@@ -203,9 +242,5 @@ class _SignUpPageState extends State<SignUpPage> {
         ],
       ),
     ));
-  }
-
-  _callSignInPage() {
-    Navigator.pushReplacementNamed(context, SignInPage.id);
   }
 }
